@@ -1,11 +1,9 @@
 <?php
-$folder = __DIR__;
+$folder = '/tmp/uploads';
+if (!is_dir($folder)) mkdir($folder, 0777, true);
 $message = "";
-
-// Upload do arquivo PDF
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_file'])) {
     $file = $_FILES['pdf_file'];
-
     if ($file['error'] === UPLOAD_ERR_OK && mime_content_type($file['tmp_name']) === 'application/pdf') {
         $destination = $folder . '/' . basename($file['name']);
         if (move_uploaded_file($file['tmp_name'], $destination)) {
@@ -17,45 +15,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_file'])) {
         $message = "Arquivo inválido ou erro no upload.";
     }
 }
-
-// Lista arquivos PDF
 $pdfFiles = glob($folder . "/*.pdf");
+function getFileUrl($filename) {
+    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+    return $protocol . "://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . "/download.php?file=" . rawurlencode($filename);
+}
 ?>
-
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-<meta charset="UTF-8" />
-<title>Armazenar e baixar PDFs</title>
-</head>
+<head><meta charset="UTF-8" /><title></title></head>
 <body>
-<h1>Armazenar e baixar PDFs</h1>
-
-<?php if ($message): ?>
-    <p><?php echo htmlspecialchars($message); ?></p>
-<?php endif; ?>
-
+<?php if ($message): ?><p><?php echo htmlspecialchars($message); ?></p><?php endif; ?>
 <form method="POST" enctype="multipart/form-data">
-    <input type="file" name="pdf_file" accept="application/pdf" required>
-    <button type="submit">Enviar PDF</button>
+<input type="file" name="pdf_file" accept="application/pdf" required>
+<button type="submit">Enviar PDF</button>
 </form>
-
 <ul>
 <?php foreach ($pdfFiles as $file): 
     $filename = basename($file);
-    // Monta URL direta para download
-    $fileUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http")
-               . "://" . $_SERVER['HTTP_HOST']
-               . dirname($_SERVER['REQUEST_URI']) . "/" . rawurlencode($filename);
-    // QR code com URL direta
+    $fileUrl = getFileUrl($filename);
     $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" . urlencode($fileUrl);
 ?>
-    <li>
-        <a href="<?php echo $fileUrl; ?>" download><?php echo htmlspecialchars($filename); ?></a>
-        <img src="<?php echo $qrUrl; ?>" alt="QR Code" style="vertical-align: middle; margin-left: 10px;">
-    </li>
+<li>
+<a href="<?php echo $fileUrl; ?>" download><?php echo htmlspecialchars($filename); ?></a>
+<img src="<?php echo $qrUrl; ?>" alt="QR Code" style="vertical-align: middle; margin-left: 10px;">
+</li>
 <?php endforeach; ?>
 </ul>
-
 </body>
 </html>
